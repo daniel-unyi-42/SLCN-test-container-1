@@ -51,14 +51,16 @@ class Slcn_algorithm(ClassificationAlgorithm):
         # current model
         if execute_in_docker:
             self.path_model = "/opt/algorithm/checkpoints/MLP2.pt"
+            self.neigh_orders = np.load('/opt/algorithm/utils/neigh_orders.npy')
         else:
             self.path_model = "./weights/MLP2.pt"
+            self.neigh_orders = np.load('./utils/neigh_orders.npy')
             
         self.model = MLP(28, [28, 28, 28, 28], 3, device=self.device)
         self.model.load_state_dict(torch.load(self.path_model))
         self.model.eval()
         
-        self.neigh_orders = np.load('neigh_orders.npy')
+        
 
 #        #This path should lead to your model weights
 #        if execute_in_docker:

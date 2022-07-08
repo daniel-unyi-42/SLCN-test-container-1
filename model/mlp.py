@@ -22,10 +22,8 @@ class MLP(Module):
         self.act = tanh
         self.to(device)
 
-    def forward(self, data):
-        batch_size = data.batch.max() + 1
-        x = data.x.reshape([batch_size, -1, data.x.shape[-1]])
-        #x = data
+    def forward(self, x):
+        x = x.reshape([1, -1, x.shape[-1]])
         x = self.act(self.lin1(x))
         x = self.bn1(x.transpose(1, 2)).transpose(1, 2)
         x = self.act(self.lin2(x))
@@ -37,4 +35,4 @@ class MLP(Module):
         x_mean = torch.mean(x, axis=1)
         x_c = torch.cat([x_mean], dim=1)
         x = self.act(self.lin5(x_c))
-        return self.lin6(x), x, x_c
+        return self.lin6(x)
