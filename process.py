@@ -52,10 +52,18 @@ class Slcn_algorithm(ClassificationAlgorithm):
         if execute_in_docker:
             self.path_model = "/opt/algorithm/checkpoints/MLP2.pt"
             self.neigh_orders = np.load('/opt/algorithm/utils/neigh_orders.npy')
+            self.mirror_index = np.load('/opt/algorithm/utils/mirror_index.npy')
+            self.means = np.load('/opt/algorithm/utils/means_template.npy')
+            self.stds = np.load('/opt/algorithm/utils/stds_template.npy')
+            self.Lref = nib.load('/opt/algorithm/utils/Lref_template.gii')
         else:
             self.path_model = "./weights/MLP2.pt"
             self.neigh_orders = np.load('./utils/neigh_orders.npy')
-            
+            self.mirror_index = np.load('./utils/mirror_index.npy')
+            self.means = np.load('./utils/means_template.npy')
+            self.stds = np.load('./utils/stds_template.npy')
+            self.Lref = nib.load('./utils/Lref_template.gii')
+        self.Lref = np.stack(self.Lref.agg_data(), axis=1)
         self.model = MLP(28, [28, 28, 28, 28], 3, device=self.device)
         self.model.load_state_dict(torch.load(self.path_model))
         self.model.eval()
@@ -109,45 +117,35 @@ class Slcn_algorithm(ClassificationAlgorithm):
         else:
             image_data = np.transpose(image_data, (1,0))
 
-        if execute_in_docker:
-            mirror_index = np.load('/opt/algorithm/utils/mirror_index.npy')
-            Lref = nib.load('/opt/algorithm/utils/Lref_template.gii')
-        else:
-            mirror_index = np.load('./utils/mirror_index.npy')
-            Lref = nib.load('./utils/Lref_template.gii')
+        print(image_data)
 
-#        if execute_in_docker:
-#            Lmeans = np.load('/opt/algorithm/utils/means_template_L.npy')
-#            Lstds = np.load('/opt/algorithm/utils/stds_template_L.npy')
-#            Rmeans = np.load('/opt/algorithm/utils/means_template_R.npy')
-#            Rstds = np.load('/opt/algorithm/utils/stds_template_R.npy')
-#            Lref = nib.load('/opt/algorithm/utils/Lref_template.gii')
-#        else:
-#            Lmeans = np.load('./utils/means_template_L.npy')
-#            Lstds = np.load('./utils/stds_template_L.npy')
-#            Rmeans = np.load('./utils/means_template_R.npy')
-#            Rstds = np.load('./utils/stds_template_R.npy')
-#            Lref = nib.load('./utils/Lref_template.gii')
-
-        Lref = np.stack(Lref.agg_data(), axis=1)
-        
-        error = np.absolute(np.subtract(image_data, Lref)).mean()
+        error = np.absolute(np.subtract(image_data, self.Lref)).mean()
         
         print(error)
 
         image_data = image_data[self.neigh_orders].reshape([image_data.shape[0], 28])
-        if error > 1.0:
-            image_data = image_data[mirror_index]
+        
+        print(image_data)
+        
+        print(self.mirror_index)
+        
+        if error > 1.385:
+            print('Here')
+            image_data = image_data[self.mirror_index]
 
-        print(image_data.shape)
+        print(image_data)
+        
+        image_data = (image_data - self.means) / self.stds
+        
+        print(image_data)
 
         with torch.no_grad():
         
-            prediction = self.model(torch.from_numpy(image_data))
+            prediction = self.model(torch.from_numpy(image_data)).cpu().numpy()
 
-        print(prediction.shape)
+        print(prediction, prediction[0][0])
 
-        return prediction.cpu().numpy()[0][0]
+        return prediction[0][0]
 
 if __name__ == "__main__":
 
